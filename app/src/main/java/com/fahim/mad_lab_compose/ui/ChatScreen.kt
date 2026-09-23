@@ -47,11 +47,15 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Summarize
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -568,7 +572,7 @@ fun ChatMessageBubble(
                                 modifier = Modifier.size(24.dp)
                             ) {
                                 Icon(
-                                    imageVector = if (ttsState is com.fahim.mad_lab_compose.voice.TTSState.Speaking) Icons.Default.Stop else Icons.Default.VolumeUp,
+                                    imageVector = if (ttsState is com.fahim.mad_lab_compose.voice.TTSState.Speaking) Icons.Default.Stop else Icons.AutoMirrored.Filled.VolumeUp,
                                     contentDescription = if (ttsState is com.fahim.mad_lab_compose.voice.TTSState.Speaking) "Stop speaking" else "Speak message",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(14.dp)

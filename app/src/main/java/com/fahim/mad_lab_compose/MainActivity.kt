@@ -116,6 +116,10 @@ fun ChatbotApp(viewModel: ChatViewModel, onRequestMicPermission: () -> Unit) {
                     onShowClearDialog = { show -> viewModel.setShowClearMemoriesDialog(show) }
                 )
             }
+            AppScreen.SUMMARIES -> {
+                // Summary screen not yet implemented - navigate to chat
+                viewModel.navigateTo(AppScreen.CHAT)
+            }
         }
     }
 }

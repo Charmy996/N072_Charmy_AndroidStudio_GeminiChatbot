@@ -5,6 +5,8 @@ import com.fahim.mad_lab_compose.data.database.MemoryDao
 import com.fahim.mad_lab_compose.data.database.MemoryEntity
 import com.fahim.mad_lab_compose.data.database.MessageDao
 import com.fahim.mad_lab_compose.data.database.MessageEntity
+import com.fahim.mad_lab_compose.data.database.SummaryDao
+import com.fahim.mad_lab_compose.data.database.SummaryEntity
 import com.fahim.mad_lab_compose.data.memory.MemoryExtractor
 import com.fahim.mad_lab_compose.network.ApiClient
 import com.fahim.mad_lab_compose.network.GeminiApiService
