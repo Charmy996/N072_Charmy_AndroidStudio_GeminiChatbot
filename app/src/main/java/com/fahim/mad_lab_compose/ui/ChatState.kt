@@ -26,5 +26,9 @@ data class ChatState(
     val showAddMemoryDialog: Boolean = false,
     val showClearChatDialog: Boolean = false,
     val showClearMemoriesDialog: Boolean = false,
+    val voiceRecognitionState: RecognitionState = RecognitionState.Idle,
+    val ttsState: TTSState = TTSState.Idle,
+    val showSummaryDialog: Boolean = false,
+    val currentSummary: String? = null,
     val showShareDialog: Boolean = false
 )
