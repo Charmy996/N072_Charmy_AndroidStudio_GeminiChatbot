@@ -8,4 +8,6 @@ local.properties
 /captures
 .externalNativeBuild
 .cxx
-/app/build
+/app/build
+.kotlin/
+
