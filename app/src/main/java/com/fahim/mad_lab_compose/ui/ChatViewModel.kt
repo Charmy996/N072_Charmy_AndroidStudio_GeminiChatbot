@@ -1,11 +1,14 @@
 package com.fahim.mad_lab_compose.ui
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.fahim.mad_lab_compose.data.database.MemoryEntity
+import com.fahim.mad_lab_compose.data.database.SummaryEntity
 import com.fahim.mad_lab_compose.data.repository.ChatRepository
 import com.fahim.mad_lab_compose.data.repository.ResultState
+import com.fahim.mad_lab_compose.voice.VoiceHelper
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,7 +17,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class ChatViewModel(
-    private val repository: ChatRepository
+    private val repository: ChatRepository,
+    private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -22,9 +26,39 @@ class ChatViewModel(
     )
     val uiState: StateFlow<ChatState> = _uiState.asStateFlow()
 
+    private var voiceHelper: VoiceHelper? = null
+
     init {
         observeMessages()
         observeMemories()
+        observeSummaries()
+        initializeVoiceHelper()
+    }
+
+    private fun initializeVoiceHelper() {
+        voiceHelper = VoiceHelper(context)
+        viewModelScope.launch {
+            voiceHelper?.recognitionState?.collect { state ->
+                when (state) {
+                    is com.fahim.mad_lab_compose.voice.RecognitionState.Success -> {
+                        _uiState.update {
+                            it.copy(
+                                voiceRecognitionState = state,
+                                inputText = state.text
+                            )
+                        }
+                    }
+                    else -> {
+                        _uiState.update { it.copy(voiceRecognitionState = state) }
+                    }
+                }
+            }
+        }
+        viewModelScope.launch {
+            voiceHelper?.ttsState?.collect { state ->
+                _uiState.update { it.copy(ttsState = state) }
+            }
+        }
     }
 
     private fun observeMessages() {
@@ -47,6 +81,18 @@ class ChatViewModel(
                 }
                 .collect { memoriesList ->
                     _uiState.update { it.copy(memories = memoriesList) }
+                }
+        }
+    }
+
+    private fun observeSummaries() {
+        viewModelScope.launch {
+            repository.getAllSummaries()
+                .catch { e ->
+                    _uiState.update { it.copy(errorMessage = "Failed to load summaries: ${e.message}") }
+                }
+                .collect { summariesList ->
+                    _uiState.update { it.copy(summaries = summariesList) }
                 }
         }
     }
@@ -162,15 +208,114 @@ class ChatViewModel(
     fun setShowClearMemoriesDialog(show: Boolean) {
         _uiState.update { it.copy(showClearMemoriesDialog = show) }
     }
+
+    // Summary Methods
+    fun generateSummary() {
+        if (_uiState.value.messages.isEmpty()) {
+            _uiState.update { it.copy(errorMessage = "No conversation to summarize") }
+            return
+        }
+
+        _uiState.update { it.copy(isGeneratingSummary = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            when (val result = repository.generateSummary()) {
+                is ResultState.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isGeneratingSummary = false,
+                            currentSummary = result.data,
+                            showSummaryDialog = true
+                        )
+                    }
+                }
+                is ResultState.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isGeneratingSummary = false,
+                            errorMessage = result.message,
+                            isApiKeyConfigured = repository.isApiKeyConfigured()
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun saveSummary(title: String) {
+        val summary = _uiState.value.currentSummary
+        if (summary.isNullOrBlank()) return
+
+        viewModelScope.launch {
+            repository.saveSummary(title, summary)
+            _uiState.update {
+                it.copy(
+                    currentSummary = null,
+                    showSummaryDialog = false
+                )
+            }
+        }
+    }
+
+    fun dismissSummaryDialog() {
+        _uiState.update {
+            it.copy(
+                currentSummary = null,
+                showSummaryDialog = false,
+                isGeneratingSummary = false
+            )
+        }
+    }
+
+    fun deleteSummary(summary: SummaryEntity) {
+        viewModelScope.launch {
+            repository.deleteSummary(summary)
+        }
+    }
+
+    fun deleteSummaryById(id: Long) {
+        viewModelScope.launch {
+            repository.deleteSummaryById(id)
+        }
+    }
+
+    fun clearAllSummaries() {
+        viewModelScope.launch {
+            repository.clearAllSummaries()
+        }
+    }
+
+    // Voice Recognition Methods
+    fun startVoiceRecognition() {
+        voiceHelper?.startListening()
+    }
+
+    fun stopVoiceRecognition() {
+        voiceHelper?.stopListening()
+    }
+
+    fun speakText(text: String) {
+        voiceHelper?.speak(text)
+    }
+
+    fun stopSpeaking() {
+        voiceHelper?.stopSpeaking()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        voiceHelper?.release()
+    }
 }
 
 class ChatViewModelFactory(
-    private val repository: ChatRepository
+    private val repository: ChatRepository,
+    private val context: Context
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ChatViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return ChatViewModel(repository) as T
+            return ChatViewModel(repository, context) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }
