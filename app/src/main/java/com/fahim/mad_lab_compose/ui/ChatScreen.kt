@@ -43,8 +43,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Warning
@@ -100,7 +103,11 @@ fun ChatScreen(
     onShowClearChatDialog: (Boolean) -> Unit,
     onConfirmClearChat: () -> Unit,
     onDismissError: () -> Unit,
-    onSaveApiKey: (String) -> Unit
+    onSaveApiKey: (String) -> Unit,
+    onStartVoiceRecognition: () -> Unit,
+    onStopVoiceRecognition: () -> Unit,
+    onSpeakText: (String) -> Unit,
+    onStopSpeaking: () -> Unit
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -207,11 +214,14 @@ fun ChatScreen(
             ChatInputBar(
                 inputText = state.inputText,
                 isLoading = state.isLoading,
+                voiceRecognitionState = state.voiceRecognitionState,
                 onInputTextChanged = onInputTextChanged,
                 onSendMessage = { onSendMessage(null) },
                 onQuickPromptClicked = { prompt ->
                     onSendMessage(prompt)
-                }
+                },
+                onStartVoiceRecognition = onStartVoiceRecognition,
+                onStopVoiceRecognition = onStopVoiceRecognition
             )
         }
     ) { paddingValues ->
@@ -264,7 +274,10 @@ fun ChatScreen(
                             message = message,
                             onCopyText = { text ->
                                 copyToClipboard(context, text)
-                            }
+                            },
+                            onSpeakText = onSpeakText,
+                            onStopSpeaking = onStopSpeaking,
+                            ttsState = state.ttsState
                         )
                     }
 
@@ -449,7 +462,10 @@ fun WelcomeScreen(
 @Composable
 fun ChatMessageBubble(
     message: MessageEntity,
-    onCopyText: (String) -> Unit
+    onCopyText: (String) -> Unit,
+    onSpeakText: (String) -> Unit,
+    onStopSpeaking: () -> Unit,
+    ttsState: com.fahim.mad_lab_compose.voice.TTSState
 ) {
     val isUser = message.sender == "user"
 
@@ -510,6 +526,17 @@ fun ChatMessageBubble(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End
                         ) {
+                            IconButton(
+                                onClick = { onSpeakText(message.message) },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (ttsState is com.fahim.mad_lab_compose.voice.TTSState.Speaking) Icons.Default.Stop else Icons.Default.VolumeUp,
+                                    contentDescription = if (ttsState is com.fahim.mad_lab_compose.voice.TTSState.Speaking) "Stop speaking" else "Speak message",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
                             IconButton(
                                 onClick = { onCopyText(message.message) },
                                 modifier = Modifier.size(24.dp)
@@ -681,9 +708,12 @@ fun ErrorBanner(
 fun ChatInputBar(
     inputText: String,
     isLoading: Boolean,
+    voiceRecognitionState: com.fahim.mad_lab_compose.voice.RecognitionState,
     onInputTextChanged: (String) -> Unit,
     onSendMessage: () -> Unit,
-    onQuickPromptClicked: (String) -> Unit
+    onQuickPromptClicked: (String) -> Unit,
+    onStartVoiceRecognition: () -> Unit,
+    onStopVoiceRecognition: () -> Unit
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -724,17 +754,63 @@ fun ChatInputBar(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Microphone button for voice input
+                IconButton(
+                    onClick = {
+                        if (voiceRecognitionState is com.fahim.mad_lab_compose.voice.RecognitionState.Listening) {
+                            onStopVoiceRecognition()
+                        } else {
+                            onStartVoiceRecognition()
+                        }
+                    },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (voiceRecognitionState is com.fahim.mad_lab_compose.voice.RecognitionState.Listening) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.primaryContainer
+                            }
+                        )
+                ) {
+                    Icon(
+                        imageVector = if (voiceRecognitionState is com.fahim.mad_lab_compose.voice.RecognitionState.Listening) Icons.Default.Stop else Icons.Default.Mic,
+                        contentDescription = if (voiceRecognitionState is com.fahim.mad_lab_compose.voice.RecognitionState.Listening) "Stop recording" else "Start voice input",
+                        tint = if (voiceRecognitionState is com.fahim.mad_lab_compose.voice.RecognitionState.Listening) {
+                            MaterialTheme.colorScheme.onError
+                        } else {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        },
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = onInputTextChanged,
-                    placeholder = { Text("Ask anything or share a fact...") },
+                    placeholder = {
+                        Text(
+                            when (voiceRecognitionState) {
+                                is com.fahim.mad_lab_compose.voice.RecognitionState.Listening -> "Listening..."
+                                is com.fahim.mad_lab_compose.voice.RecognitionState.Partial -> voiceRecognitionState.text
+                                else -> "Ask anything or share a fact..."
+                            }
+                        )
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 8.dp),
                     shape = RoundedCornerShape(24.dp),
                     maxLines = 4,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedBorderColor = if (voiceRecognitionState is com.fahim.mad_lab_compose.voice.RecognitionState.Listening) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                     )
                 )
