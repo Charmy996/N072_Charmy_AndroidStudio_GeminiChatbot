@@ -7,7 +7,13 @@ import com.fahim.mad_lab_compose.data.repository.ChatRepository
 class ChatbotApplication : Application() {
 
     val database by lazy { AppDatabase.getDatabase(this) }
-    val repository by lazy { ChatRepository(database.memoryDao(), database.messageDao(), database.summaryDao()) }
+    val repository by lazy {
+        ChatRepository(
+            memoryDao = database.memoryDao(),
+            messageDao = database.messageDao(),
+            summaryDao = database.summaryDao()
+        )
+    }
 
     override fun onCreate() {
         super.onCreate()

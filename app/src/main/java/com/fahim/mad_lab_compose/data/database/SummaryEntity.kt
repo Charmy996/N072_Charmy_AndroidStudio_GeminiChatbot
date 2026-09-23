@@ -4,8 +4,8 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
- * Entity representing a conversation summary.
- * Supports persistent summaries across app launches.
+ * Entity representing an AI-generated conversation summary.
+ * Persisted locally in Room Database across application restarts.
  */
 @Entity(tableName = "summaries")
 data class SummaryEntity(

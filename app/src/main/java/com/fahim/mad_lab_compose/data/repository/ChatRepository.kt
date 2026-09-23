@@ -18,6 +18,7 @@ import com.fahim.mad_lab_compose.network.GeminiSystemInstruction
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -31,7 +32,7 @@ sealed class ResultState<out T> {
 class ChatRepository(
     private val memoryDao: MemoryDao,
     private val messageDao: MessageDao,
-    private val summaryDao: SummaryDao,
+    private val summaryDao: SummaryDao? = null,
     private val geminiService: GeminiApiService = ApiClient.geminiService
 ) {
 
@@ -62,7 +63,7 @@ class ChatRepository(
     }
 
     fun getAllSummaries(): Flow<List<SummaryEntity>> {
-        return summaryDao.getAllSummaries()
+        return summaryDao?.getAllSummaries() ?: emptyFlow()
     }
 
     // --- Memory Operations ---
@@ -87,75 +88,76 @@ class ChatRepository(
     }
 
     // --- Summary Operations ---
-    suspend fun saveSummary(title: String, summary: String) = withContext(Dispatchers.IO) {
-        val summaryEntity = SummaryEntity(
-            title = title,
-            summary = summary,
-            createdAt = System.currentTimeMillis()
+    suspend fun saveSummary(title: String, summaryText: String) = withContext(Dispatchers.IO) {
+        summaryDao?.insertSummary(
+            SummaryEntity(
+                title = title.ifBlank { "Conversation Summary" },
+                summary = summaryText,
+                createdAt = System.currentTimeMillis()
+            )
         )
-        summaryDao.insertSummary(summaryEntity)
     }
 
     suspend fun deleteSummary(summary: SummaryEntity) = withContext(Dispatchers.IO) {
-        summaryDao.deleteSummaryById(summary.id)
+        summaryDao?.deleteSummary(summary)
     }
 
     suspend fun deleteSummaryById(id: Long) = withContext(Dispatchers.IO) {
-        summaryDao.deleteSummaryById(id)
+        summaryDao?.deleteSummaryById(id)
     }
 
     suspend fun clearAllSummaries() = withContext(Dispatchers.IO) {
-        summaryDao.deleteAllSummaries()
+        summaryDao?.deleteAllSummaries()
     }
 
     /**
-     * Generate a summary of the current conversation using Gemini.
+     * AI Conversation Summary Generator:
+     * Analyzes current conversation messages using Gemini and returns a concise bulleted summary.
      */
-    suspend fun generateSummary(conversationId: String = "default"): ResultState<String> = withContext(Dispatchers.IO) {
+    suspend fun generateConversationSummary(
+        conversationId: String = "default"
+    ): ResultState<String> = withContext(Dispatchers.IO) {
         val apiKey = getEffectiveApiKey()
         if (apiKey.isBlank()) {
             return@withContext ResultState.Error(
-                message = "Gemini API key is not configured. Please add it to local.properties (GEMINI_API_KEY=your_key) or set it in the Settings menu.",
+                message = "Gemini API key is required to generate summaries. Please configure your key.",
                 isApiKeyError = true
             )
         }
 
-        try {
-            // Fetch recent messages for summary
-            val recentMessages = messageDao.getRecentMessages(conversationId, limit = 20)
-            if (recentMessages.isEmpty()) {
-                return@withContext ResultState.Error("No conversation to summarize")
-            }
+        val messages = messageDao.getRecentMessages(conversationId, limit = 50).reversed()
+        if (messages.isEmpty()) {
+            return@withContext ResultState.Error("No conversation messages found to summarize. Have a chat first!")
+        }
 
-            // Build conversation text for Gemini
-            val conversationText = recentMessages.joinToString("\n") { msg ->
-                "${msg.sender.uppercase()}: ${msg.message}"
-            }
+        val formattedChat = StringBuilder()
+        for (msg in messages) {
+            val role = if (msg.sender == "user") "User" else "Bot"
+            formattedChat.append("$role: ${msg.message}\n")
+        }
 
-            val summaryPrompt = """
-                Please analyze the following conversation and provide a concise summary. 
-                Focus on the key points, decisions, and important information discussed.
-                Format the summary with bullet points for clarity.
-                
-                Conversation:
-                $conversationText
-                
-                Please provide a structured summary.
-            """.trimIndent()
+        val summaryPrompt = """
+            Analyze the following conversation and provide a concise, structured bulleted summary (•) of key points, personal details shared, questions asked, and conclusions.
+            Keep each bullet point brief and informative. Do NOT include greetings or conversational filler.
+            
+            CONVERSATION:
+            $formattedChat
+        """.trimIndent()
 
-            val request = GeminiRequest(
-                contents = listOf(
-                    GeminiContent(
-                        role = "user",
-                        parts = listOf(GeminiPart(text = summaryPrompt))
-                    )
-                ),
-                generationConfig = GeminiGenerationConfig(
-                    temperature = 0.3f,
-                    maxOutputTokens = 1024
+        val request = GeminiRequest(
+            contents = listOf(
+                GeminiContent(
+                    role = "user",
+                    parts = listOf(GeminiPart(text = summaryPrompt))
                 )
+            ),
+            generationConfig = GeminiGenerationConfig(
+                temperature = 0.3f,
+                maxOutputTokens = 1024
             )
+        )
 
+        try {
             val response = geminiService.generateContent(
                 model = ApiClient.DEFAULT_MODEL,
                 apiKey = apiKey,
@@ -163,46 +165,22 @@ class ChatRepository(
             )
 
             if (response.isSuccessful) {
-                val body = response.body()
-                val candidateText = body?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-
-                if (!candidateText.isNullOrBlank()) {
-                    val cleanSummary = candidateText.trim()
-                    return@withContext ResultState.Success(cleanSummary)
+                val summaryText = response.body()?.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                if (!summaryText.isNullOrBlank()) {
+                    return@withContext ResultState.Success(summaryText.trim())
                 } else {
-                    return@withContext ResultState.Error("Received empty response from Gemini API.")
+                    return@withContext ResultState.Error("Could not generate summary from response.")
                 }
             } else {
                 val errorBody = response.errorBody()?.string()
-                val code = response.code()
-                val errorMessage = when (code) {
-                    400 -> {
-                        if (errorBody?.contains("API_KEY_INVALID", ignoreCase = true) == true ||
-                            errorBody?.contains("API key not valid", ignoreCase = true) == true
-                        ) {
-                            "Invalid Gemini API Key. Please verify your API key."
-                        } else {
-                            "Bad Request (400): ${parseErrorDetails(errorBody)}"
-                        }
-                    }
-                    403 -> "Access forbidden (403): Please check your Gemini API key permissions."
-                    429 -> "Gemini API rate limit exceeded (429). Please wait a few seconds and try again."
-                    500, 503 -> "Gemini server is temporarily unavailable. Please try again later."
-                    else -> "API Error ($code): ${parseErrorDetails(errorBody)}"
-                }
-
-                val isApiKeyErr = code == 400 && (errorBody?.contains("API_KEY", ignoreCase = true) == true) || code == 403
-                return@withContext ResultState.Error(errorMessage, isApiKeyError = isApiKeyErr)
+                return@withContext ResultState.Error("Failed to generate summary: ${parseErrorDetails(errorBody)}")
             }
-
         } catch (e: UnknownHostException) {
             return@withContext ResultState.Error("No internet connection. Please check your network and try again.")
         } catch (e: SocketTimeoutException) {
-            return@withContext ResultState.Error("Connection timed out. Gemini API took too long to respond.")
-        } catch (e: IOException) {
-            return@withContext ResultState.Error("Network error: ${e.localizedMessage ?: "Failed to connect"}")
+            return@withContext ResultState.Error("Connection timed out while generating summary.")
         } catch (e: Exception) {
-            return@withContext ResultState.Error("An unexpected error occurred: ${e.localizedMessage ?: e.javaClass.simpleName}")
+            return@withContext ResultState.Error("Error generating summary: ${e.localizedMessage ?: "Unknown error"}")
         }
     }
 
