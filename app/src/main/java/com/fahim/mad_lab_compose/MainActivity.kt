@@ -54,14 +54,37 @@ fun ChatbotApp(viewModel: ChatViewModel) {
     val state by viewModel.uiState.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
+    val speechIntentLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val spokenText = result.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
+            if (!spokenText.isNullOrBlank()) {
+                viewModel.onInputTextChanged(spokenText)
+            }
+        }
+    }
+
     val micPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            viewModel.startVoiceRecognition()
+            if (android.speech.SpeechRecognizer.isRecognitionAvailable(context)) {
+                viewModel.startVoiceRecognition()
+            } else {
+                try {
+                    val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Speak to Gemini Chatbot...")
+                    }
+                    speechIntentLauncher.launch(intent)
+                } catch (e: Exception) {
+                    viewModel.dismissError()
+                    android.widget.Toast.makeText(context, "Voice input not available on this device", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
         } else {
             viewModel.dismissError()
-            // Post an error message if permission was denied
             android.widget.Toast.makeText(
                 context,
                 "Microphone permission is required for voice input",
@@ -76,7 +99,19 @@ fun ChatbotApp(viewModel: ChatViewModel) {
                 Manifest.permission.RECORD_AUDIO
             ) == PackageManager.PERMISSION_GRANTED
         ) {
-            viewModel.startVoiceRecognition()
+            if (android.speech.SpeechRecognizer.isRecognitionAvailable(context)) {
+                viewModel.startVoiceRecognition()
+            } else {
+                try {
+                    val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                        putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                        putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Speak to Gemini Chatbot...")
+                    }
+                    speechIntentLauncher.launch(intent)
+                } catch (e: Exception) {
+                    android.widget.Toast.makeText(context, "Voice input not available on this device", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
         } else {
             micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }

@@ -152,16 +152,16 @@ class VoiceHelper(private val context: Context) : RecognitionListener, TextToSpe
 
     override fun onError(error: Int) {
         val errorMessage = when (error) {
-            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
-            SpeechRecognizer.ERROR_CLIENT -> "Client error"
-            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
-            SpeechRecognizer.ERROR_NETWORK -> "Network error"
-            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
-            SpeechRecognizer.ERROR_NO_MATCH -> "No speech detected"
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Recognizer busy"
-            SpeechRecognizer.ERROR_SERVER -> "Server error"
-            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
-            else -> "Unknown error: $error"
+            SpeechRecognizer.ERROR_AUDIO -> "Audio recording error. Check emulator microphone settings."
+            SpeechRecognizer.ERROR_CLIENT -> "Speech recognition client error."
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission is required."
+            SpeechRecognizer.ERROR_NETWORK -> "Network error during speech recognition."
+            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout during speech recognition."
+            SpeechRecognizer.ERROR_NO_MATCH -> "No speech detected. Please speak clearly into your mic."
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Voice recognizer is busy. Please try again."
+            SpeechRecognizer.ERROR_SERVER -> "Speech recognition server error."
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input heard. Tap mic and speak."
+            else -> "Speech recognition error ($error)"
         }
         _recognitionState.value = RecognitionState.Error(errorMessage)
         isListening = false

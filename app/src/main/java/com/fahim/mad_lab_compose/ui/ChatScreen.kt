@@ -1046,66 +1046,98 @@ fun SummaryDialog(
     )
 }
 
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Chat Screen - Empty / Welcome")
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Interactive Chat Preview (Testing Mode)")
 @Composable
-fun ChatScreenEmptyPreview() {
+fun InteractiveChatPreview() {
+    var previewState by remember {
+        mutableStateOf(
+            ChatState(
+                isApiKeyConfigured = true,
+                memories = listOf(
+                    com.fahim.mad_lab_compose.data.database.MemoryEntity(id = 1, key = "name", value = "Charmy"),
+                    com.fahim.mad_lab_compose.data.database.MemoryEntity(id = 2, key = "college", value = "NMIMS")
+                )
+            )
+        )
+    }
+
     com.fahim.mad_lab_compose.ui.theme.GeminiChatbotTheme {
         ChatScreen(
-            state = ChatState(isApiKeyConfigured = true),
-            onInputTextChanged = {},
-            onSendMessage = {},
+            state = previewState,
+            onInputTextChanged = { text ->
+                previewState = previewState.copy(inputText = text)
+            },
+            onSendMessage = { explicitText ->
+                val text = (explicitText ?: previewState.inputText).trim()
+                if (text.isNotBlank()) {
+                    val userMsg = MessageEntity(
+                        id = System.currentTimeMillis(),
+                        sender = "user",
+                        message = text,
+                        timestamp = System.currentTimeMillis()
+                    )
+                    val botReply = MessageEntity(
+                        id = System.currentTimeMillis() + 1,
+                        sender = "bot",
+                        message = "I remember you! You said: \"$text\"",
+                        timestamp = System.currentTimeMillis() + 1000
+                    )
+                    previewState = previewState.copy(
+                        inputText = "",
+                        messages = previewState.messages + userMsg + botReply
+                    )
+                }
+            },
             onOpenMemories = {},
-            onOpenApiKeyDialog = {},
-            onShowClearChatDialog = {},
-            onConfirmClearChat = {},
-            onDismissError = {},
-            onSaveApiKey = {},
-            onShareConversation = {},
-            onDismissShareDialog = {},
-            getFormattedConversation = { "" },
-            onStartVoiceRecognition = {},
-            onStopVoiceRecognition = {},
+            onOpenApiKeyDialog = {
+                previewState = previewState.copy(showApiKeyDialog = true)
+            },
+            onShowClearChatDialog = { show ->
+                previewState = previewState.copy(showClearChatDialog = show)
+            },
+            onConfirmClearChat = {
+                previewState = previewState.copy(messages = emptyList(), showClearChatDialog = false)
+            },
+            onDismissError = {
+                previewState = previewState.copy(errorMessage = null)
+            },
+            onSaveApiKey = {
+                previewState = previewState.copy(isApiKeyConfigured = true, showApiKeyDialog = false)
+            },
+            onShareConversation = {
+                previewState = previewState.copy(showShareDialog = true)
+            },
+            onDismissShareDialog = {
+                previewState = previewState.copy(showShareDialog = false)
+            },
+            getFormattedConversation = { "User: Hello\nBot: Hi Charmy!" },
+            onStartVoiceRecognition = {
+                previewState = previewState.copy(
+                    voiceRecognitionState = com.fahim.mad_lab_compose.voice.RecognitionState.Listening,
+                    inputText = "Listening... speak now"
+                )
+            },
+            onStopVoiceRecognition = {
+                previewState = previewState.copy(
+                    voiceRecognitionState = com.fahim.mad_lab_compose.voice.RecognitionState.Idle,
+                    inputText = "My name is Charmy"
+                )
+            },
             onSpeakText = {},
             onStopSpeaking = {},
-            onGenerateSummary = {},
-            onSaveSummary = {},
-            onDismissSummaryDialog = {}
+            onGenerateSummary = {
+                previewState = previewState.copy(
+                    showSummaryDialog = true,
+                    currentSummary = "• User shared their name is Charmy\n• User studies at NMIMS"
+                )
+            },
+            onSaveSummary = {
+                previewState = previewState.copy(showSummaryDialog = false)
+            },
+            onDismissSummaryDialog = {
+                previewState = previewState.copy(showSummaryDialog = false)
+            }
         )
     }
 }
-
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Chat Screen - Conversation")
-@Composable
-fun ChatScreenConversationPreview() {
-    com.fahim.mad_lab_compose.ui.theme.GeminiChatbotTheme {
-        ChatScreen(
-            state = ChatState(
-                isApiKeyConfigured = true,
-                messages = listOf(
-                    MessageEntity(id = 1, sender = "user", message = "My name is Charmy and I study Computer Engineering at NMIMS.", timestamp = System.currentTimeMillis() - 60000),
-                    MessageEntity(id = 2, sender = "bot", message = "Hello Charmy! Nice to meet you. I've noted that you study Computer Engineering at NMIMS. How can I help you today?", timestamp = System.currentTimeMillis() - 40000),
-                    MessageEntity(id = 3, sender = "user", message = "Where do I study?", timestamp = System.currentTimeMillis() - 20000),
-                    MessageEntity(id = 4, sender = "bot", message = "You study Computer Engineering at NMIMS!", timestamp = System.currentTimeMillis())
-                )
-            ),
-            onInputTextChanged = {},
-            onSendMessage = {},
-            onOpenMemories = {},
-            onOpenApiKeyDialog = {},
-            onShowClearChatDialog = {},
-            onConfirmClearChat = {},
-            onDismissError = {},
-            onSaveApiKey = {},
-            onShareConversation = {},
-            onDismissShareDialog = {},
-            getFormattedConversation = { "" },
-            onStartVoiceRecognition = {},
-            onStopVoiceRecognition = {},
-            onSpeakText = {},
-            onStopSpeaking = {},
-            onGenerateSummary = {},
-            onSaveSummary = {},
-            onDismissSummaryDialog = {}
-        )
-    }
-}
+
