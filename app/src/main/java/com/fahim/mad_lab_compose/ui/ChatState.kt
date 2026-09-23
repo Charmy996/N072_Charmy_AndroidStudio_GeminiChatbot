@@ -19,5 +19,6 @@ data class ChatState(
     val showApiKeyDialog: Boolean = false,
     val showAddMemoryDialog: Boolean = false,
     val showClearChatDialog: Boolean = false,
-    val showClearMemoriesDialog: Boolean = false
+    val showClearMemoriesDialog: Boolean = false,
+    val showShareDialog: Boolean = false
 )

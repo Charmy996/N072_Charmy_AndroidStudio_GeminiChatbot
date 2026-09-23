@@ -69,7 +69,10 @@ fun ChatbotApp(viewModel: ChatViewModel) {
                     onShowClearChatDialog = { show -> viewModel.setShowClearChatDialog(show) },
                     onConfirmClearChat = { viewModel.clearChatHistory() },
                     onDismissError = { viewModel.dismissError() },
-                    onSaveApiKey = { key -> viewModel.setApiKey(key) }
+                    onSaveApiKey = { key -> viewModel.setApiKey(key) },
+                    onShareConversation = { viewModel.shareConversation() },
+                    onDismissShareDialog = { viewModel.dismissShareDialog() },
+                    getFormattedConversation = { viewModel.getFormattedConversation() }
                 )
             }
             AppScreen.MEMORY -> {

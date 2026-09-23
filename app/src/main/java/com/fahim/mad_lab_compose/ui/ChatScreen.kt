@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Warning
@@ -69,6 +70,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -100,7 +102,10 @@ fun ChatScreen(
     onShowClearChatDialog: (Boolean) -> Unit,
     onConfirmClearChat: () -> Unit,
     onDismissError: () -> Unit,
-    onSaveApiKey: (String) -> Unit
+    onSaveApiKey: (String) -> Unit,
+    onShareConversation: () -> Unit,
+    onDismissShareDialog: () -> Unit,
+    getFormattedConversation: () -> String
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -158,6 +163,16 @@ fun ChatScreen(
                     }
                 },
                 actions = {
+                    // Share Button
+                    if (state.messages.isNotEmpty()) {
+                        IconButton(onClick = onShareConversation) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share Chat"
+                            )
+                        }
+                    }
+
                     // Memory Button with Badge
                     IconButton(onClick = onOpenMemories) {
                         BadgedBox(
@@ -313,6 +328,14 @@ fun ChatScreen(
             onSaveKey = { key ->
                 onSaveApiKey(key)
             }
+        )
+    }
+
+    // Share Dialog
+    if (state.showShareDialog) {
+        ShareDialog(
+            onDismiss = onDismissShareDialog,
+            getFormattedConversation = getFormattedConversation
         )
     }
 }
@@ -779,4 +802,72 @@ private fun copyToClipboard(context: Context, text: String) {
     val clip = ClipData.newPlainText("Chat Message", text)
     clipboard.setPrimaryClip(clip)
     Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+}
+
+@Composable
+fun ShareDialog(
+    onDismiss: () -> Unit,
+    getFormattedConversation: () -> String
+) {
+    val context = LocalContext.current
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Share Conversation") },
+        text = {
+            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                Text(
+                    "Share this conversation with another app:",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        androidx.compose.foundation.lazy.LazyColumn {
+                            items(
+                                getFormattedConversation().lines().take(10).toList()
+                            ) { line ->
+                                Text(
+                                    text = line,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val conversationText = getFormattedConversation()
+                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_TEXT, conversationText)
+                        putExtra(android.content.Intent.EXTRA_SUBJECT, "MemoryBot Conversation")
+                    }
+                    val chooser = android.content.Intent.createChooser(shareIntent, "Share Conversation")
+                    context.startActivity(chooser)
+                    onDismiss()
+                }
+            ) {
+                Text("Share")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        shape = RoundedCornerShape(20.dp)
+    )
 }

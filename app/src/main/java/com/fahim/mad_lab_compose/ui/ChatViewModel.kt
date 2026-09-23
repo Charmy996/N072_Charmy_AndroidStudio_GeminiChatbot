@@ -162,6 +162,34 @@ class ChatViewModel(
     fun setShowClearMemoriesDialog(show: Boolean) {
         _uiState.update { it.copy(showClearMemoriesDialog = show) }
     }
+
+    // Share Methods
+    fun shareConversation() {
+        if (_uiState.value.messages.isEmpty()) {
+            _uiState.update { it.copy(errorMessage = "No conversation to share") }
+            return
+        }
+        _uiState.update { it.copy(showShareDialog = true) }
+    }
+
+    fun dismissShareDialog() {
+        _uiState.update { it.copy(showShareDialog = false) }
+    }
+
+    fun getFormattedConversation(): String {
+        val messages = _uiState.value.messages
+        val sb = StringBuilder()
+        sb.append("MemoryBot Conversation\n")
+        sb.append("Generated on ${java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())}\n\n")
+        
+        messages.forEach { message ->
+            val sender = if (message.sender == "user") "User" else "Bot"
+            sb.append("$sender:\n")
+            sb.append("${message.message}\n\n")
+        }
+        
+        return sb.toString()
+    }
 }
 
 class ChatViewModelFactory(
