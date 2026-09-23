@@ -27,12 +27,6 @@ import com.fahim.mad_lab_compose.ui.theme.GeminiChatbotTheme
 
 class MainActivity : ComponentActivity() {
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        // Permission result will be handled by the voice helper
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -48,29 +42,45 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    ChatbotApp(
-                        viewModel = chatViewModel,
-                        onRequestMicPermission = { requestMicrophonePermission() }
-                    )
+                    ChatbotApp(viewModel = chatViewModel)
                 }
             }
-        }
-    }
-
-    private fun requestMicrophonePermission() {
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
         }
     }
 }
 
 @Composable
-fun ChatbotApp(viewModel: ChatViewModel, onRequestMicPermission: () -> Unit) {
+fun ChatbotApp(viewModel: ChatViewModel) {
     val state by viewModel.uiState.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    val micPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            viewModel.startVoiceRecognition()
+        } else {
+            viewModel.dismissError()
+            // Post an error message if permission was denied
+            android.widget.Toast.makeText(
+                context,
+                "Microphone permission is required for voice input",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    val handleVoiceClick = {
+        if (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            viewModel.startVoiceRecognition()
+        } else {
+            micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
 
     // Handle back button when on Memory screen
     BackHandler(enabled = state.currentScreen == AppScreen.MEMORY) {
@@ -96,7 +106,7 @@ fun ChatbotApp(viewModel: ChatViewModel, onRequestMicPermission: () -> Unit) {
                     onShareConversation = { viewModel.shareConversation() },
                     onDismissShareDialog = { viewModel.dismissShareDialog() },
                     getFormattedConversation = { viewModel.getFormattedConversation() },
-                    onStartVoiceRecognition = { viewModel.startVoiceRecognition() },
+                    onStartVoiceRecognition = handleVoiceClick,
                     onStopVoiceRecognition = { viewModel.stopVoiceRecognition() },
                     onSpeakText = { text -> viewModel.speakText(text) },
                     onStopSpeaking = { viewModel.stopSpeaking() },
@@ -117,7 +127,6 @@ fun ChatbotApp(viewModel: ChatViewModel, onRequestMicPermission: () -> Unit) {
                 )
             }
             AppScreen.SUMMARIES -> {
-                // Summary screen not yet implemented - navigate to chat
                 viewModel.navigateTo(AppScreen.CHAT)
             }
         }

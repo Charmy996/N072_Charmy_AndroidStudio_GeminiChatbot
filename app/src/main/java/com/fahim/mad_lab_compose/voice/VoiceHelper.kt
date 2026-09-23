@@ -48,55 +48,65 @@ class VoiceHelper(private val context: Context) : RecognitionListener, TextToSpe
         }
     }
 
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
     fun startListening() {
-        if (isListening) {
-            stopListening()
-        }
+        mainHandler.post {
+            if (isListening) {
+                stopListening()
+            }
 
-        // Check for microphone permission
-        if (ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            _recognitionState.value = RecognitionState.Error("Microphone permission not granted")
-            return
-        }
+            // Check for microphone permission
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                _recognitionState.value = RecognitionState.Error("Microphone permission required. Please grant permission.")
+                return@post
+            }
 
-        if (!SpeechRecognizer.isRecognitionAvailable(context)) {
-            _recognitionState.value = RecognitionState.Error("Speech recognition not available on this device")
-            return
-        }
+            if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+                _recognitionState.value = RecognitionState.Error("Speech recognition service not available on this device/emulator.")
+                return@post
+            }
 
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
-            setRecognitionListener(this@VoiceHelper)
-        }
+            try {
+                speechRecognizer?.destroy()
+                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+                    setRecognitionListener(this@VoiceHelper)
+                }
 
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.US)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-        }
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.US)
+                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                    putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                }
 
-        try {
-            speechRecognizer?.startListening(intent)
-            isListening = true
-            _recognitionState.value = RecognitionState.Listening
-        } catch (e: Exception) {
-            _recognitionState.value = RecognitionState.Error("Failed to start speech recognition: ${e.message}")
-            Log.e("VoiceHelper", "Speech recognition error", e)
+                speechRecognizer?.startListening(intent)
+                isListening = true
+                _recognitionState.value = RecognitionState.Listening
+            } catch (e: Exception) {
+                _recognitionState.value = RecognitionState.Error("Failed to start speech recognition: ${e.message}")
+                Log.e("VoiceHelper", "Speech recognition error", e)
+            }
         }
     }
 
     fun stopListening() {
-        speechRecognizer?.apply {
-            cancel()
-            destroy()
+        mainHandler.post {
+            try {
+                speechRecognizer?.stopListening()
+                speechRecognizer?.cancel()
+                speechRecognizer?.destroy()
+            } catch (e: Exception) {
+                Log.e("VoiceHelper", "Error stopping speech recognizer", e)
+            }
+            speechRecognizer = null
+            isListening = false
+            _recognitionState.value = RecognitionState.Idle
         }
-        speechRecognizer = null
-        isListening = false
-        _recognitionState.value = RecognitionState.Idle
     }
 
     fun speak(text: String) {

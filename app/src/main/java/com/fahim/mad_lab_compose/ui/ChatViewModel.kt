@@ -48,6 +48,22 @@ class ChatViewModel(
                             )
                         }
                     }
+                    is com.fahim.mad_lab_compose.voice.RecognitionState.Partial -> {
+                        _uiState.update {
+                            it.copy(
+                                voiceRecognitionState = state,
+                                inputText = state.text
+                            )
+                        }
+                    }
+                    is com.fahim.mad_lab_compose.voice.RecognitionState.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                voiceRecognitionState = state,
+                                errorMessage = state.message
+                            )
+                        }
+                    }
                     else -> {
                         _uiState.update { it.copy(voiceRecognitionState = state) }
                     }
