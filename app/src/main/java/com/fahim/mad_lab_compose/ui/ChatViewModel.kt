@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.fahim.mad_lab_compose.data.database.MemoryEntity
+import com.fahim.mad_lab_compose.data.database.SummaryEntity
 import com.fahim.mad_lab_compose.data.repository.ChatRepository
 import com.fahim.mad_lab_compose.data.repository.ResultState
 import com.fahim.mad_lab_compose.voice.VoiceHelper
@@ -30,6 +31,7 @@ class ChatViewModel(
     init {
         observeMessages()
         observeMemories()
+        observeSummaries()
         initializeVoiceHelper()
     }
 
@@ -79,6 +81,18 @@ class ChatViewModel(
                 }
                 .collect { memoriesList ->
                     _uiState.update { it.copy(memories = memoriesList) }
+                }
+        }
+    }
+
+    private fun observeSummaries() {
+        viewModelScope.launch {
+            repository.getAllSummaries()
+                .catch { e ->
+                    _uiState.update { it.copy(errorMessage = "Failed to load summaries: ${e.message}") }
+                }
+                .collect { summariesList ->
+                    _uiState.update { it.copy(summaries = summariesList) }
                 }
         }
     }
@@ -195,6 +209,103 @@ class ChatViewModel(
         _uiState.update { it.copy(showClearMemoriesDialog = show) }
     }
 
+    // Summary Methods
+    fun generateSummary() {
+        if (_uiState.value.messages.isEmpty()) {
+            _uiState.update { it.copy(errorMessage = "No conversation to summarize") }
+            return
+        }
+
+        _uiState.update { it.copy(isGeneratingSummary = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            when (val result = repository.generateSummary()) {
+                is ResultState.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isGeneratingSummary = false,
+                            currentSummary = result.data,
+                            showSummaryDialog = true
+                        )
+                    }
+                }
+                is ResultState.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isGeneratingSummary = false,
+                            errorMessage = result.message,
+                            isApiKeyConfigured = repository.isApiKeyConfigured()
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun saveSummary(title: String) {
+        val summary = _uiState.value.currentSummary
+        if (summary.isNullOrBlank()) return
+
+        viewModelScope.launch {
+            repository.saveSummary(title, summary)
+            _uiState.update {
+                it.copy(
+                    currentSummary = null,
+                    showSummaryDialog = false
+                )
+            }
+        }
+    }
+
+    fun dismissSummaryDialog() {
+        _uiState.update {
+            it.copy(
+                currentSummary = null,
+                showSummaryDialog = false,
+                isGeneratingSummary = false
+            )
+        }
+    }
+
+    fun deleteSummary(summary: SummaryEntity) {
+        viewModelScope.launch {
+            repository.deleteSummary(summary)
+        }
+    }
+
+    fun deleteSummaryById(id: Long) {
+        viewModelScope.launch {
+            repository.deleteSummaryById(id)
+        }
+    }
+
+    fun clearAllSummaries() {
+        viewModelScope.launch {
+            repository.clearAllSummaries()
+        }
+    }
+
+    // Voice Recognition Methods
+
+    fun deleteSummary(summary: SummaryEntity) {
+        viewModelScope.launch {
+            repository.deleteSummary(summary)
+        }
+    }
+
+    fun deleteSummaryById(id: Long) {
+        viewModelScope.launch {
+            repository.deleteSummaryById(id)
+        }
+    }
+
+    fun clearAllSummaries() {
+        viewModelScope.launch {
+            repository.clearAllSummaries()
+        }
+    }
+
+>>>>>>> feature/conversation-summary
     // Voice Recognition Methods
     fun startVoiceRecognition() {
         voiceHelper?.startListening()
