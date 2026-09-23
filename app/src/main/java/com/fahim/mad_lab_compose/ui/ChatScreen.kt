@@ -38,24 +38,19 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.Summarize
-import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -75,14 +70,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,6 +85,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fahim.mad_lab_compose.data.database.MessageEntity
+import com.fahim.mad_lab_compose.util.ChatExporter
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -110,17 +102,7 @@ fun ChatScreen(
     onShowClearChatDialog: (Boolean) -> Unit,
     onConfirmClearChat: () -> Unit,
     onDismissError: () -> Unit,
-    onSaveApiKey: (String) -> Unit,
-    onShareConversation: () -> Unit,
-    onDismissShareDialog: () -> Unit,
-    getFormattedConversation: () -> String,
-    onStartVoiceRecognition: () -> Unit,
-    onStopVoiceRecognition: () -> Unit,
-    onSpeakText: (String) -> Unit,
-    onStopSpeaking: () -> Unit,
-    onGenerateSummary: () -> Unit,
-    onSaveSummary: (String) -> Unit,
-    onDismissSummaryDialog: () -> Unit
+    onSaveApiKey: (String) -> Unit
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -178,12 +160,15 @@ fun ChatScreen(
                     }
                 },
                 actions = {
-                    // Share Button
+                    // Export & Share Conversation Button
                     if (state.messages.isNotEmpty()) {
-                        IconButton(onClick = onShareConversation) {
+                        IconButton(onClick = {
+                            ChatExporter.shareConversation(context, state.messages)
+                        }) {
                             Icon(
                                 imageVector = Icons.Default.Share,
-                                contentDescription = "Share Chat"
+                                contentDescription = "Share Conversation",
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -237,14 +222,11 @@ fun ChatScreen(
             ChatInputBar(
                 inputText = state.inputText,
                 isLoading = state.isLoading,
-                voiceRecognitionState = state.voiceRecognitionState,
                 onInputTextChanged = onInputTextChanged,
                 onSendMessage = { onSendMessage(null) },
                 onQuickPromptClicked = { prompt ->
                     onSendMessage(prompt)
-                },
-                onStartVoiceRecognition = onStartVoiceRecognition,
-                onStopVoiceRecognition = onStopVoiceRecognition
+                }
             )
         }
     ) { paddingValues ->
@@ -297,10 +279,7 @@ fun ChatScreen(
                             message = message,
                             onCopyText = { text ->
                                 copyToClipboard(context, text)
-                            },
-                            onSpeakText = onSpeakText,
-                            onStopSpeaking = onStopSpeaking,
-                            ttsState = state.ttsState
+                            }
                         )
                     }
 
@@ -351,24 +330,6 @@ fun ChatScreen(
             }
         )
     }
-
-    // Summary Dialog
-    if (state.showSummaryDialog) {
-        SummaryDialog(
-            summary = state.currentSummary,
-            isGenerating = state.isGeneratingSummary,
-            onSave = { title -> onSaveSummary(title) },
-            onDismiss = onDismissSummaryDialog
-        )
-    }
-
-    // Share Dialog
-    if (state.showShareDialog) {
-        ShareDialog(
-            onDismiss = onDismissShareDialog,
-            getFormattedConversation = getFormattedConversation
-        )
-    }
 }
 
 @Composable
@@ -412,7 +373,7 @@ fun WelcomeScreen(
         Spacer(modifier = Modifier.height(6.dp))
 
         Text(
-            text = "I remember your personal details across sessions using Room Database.",
+            text = "I remember your personal details across sessions and let you export/share conversations.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
@@ -503,10 +464,7 @@ fun WelcomeScreen(
 @Composable
 fun ChatMessageBubble(
     message: MessageEntity,
-    onCopyText: (String) -> Unit,
-    onSpeakText: (String) -> Unit,
-    onStopSpeaking: () -> Unit,
-    ttsState: com.fahim.mad_lab_compose.voice.TTSState
+    onCopyText: (String) -> Unit
 ) {
     val isUser = message.sender == "user"
 
@@ -567,17 +525,6 @@ fun ChatMessageBubble(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End
                         ) {
-                            IconButton(
-                                onClick = { onSpeakText(message.message) },
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (ttsState is com.fahim.mad_lab_compose.voice.TTSState.Speaking) Icons.Default.Stop else Icons.AutoMirrored.Filled.VolumeUp,
-                                    contentDescription = if (ttsState is com.fahim.mad_lab_compose.voice.TTSState.Speaking) "Stop speaking" else "Speak message",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
                             IconButton(
                                 onClick = { onCopyText(message.message) },
                                 modifier = Modifier.size(24.dp)
@@ -749,12 +696,9 @@ fun ErrorBanner(
 fun ChatInputBar(
     inputText: String,
     isLoading: Boolean,
-    voiceRecognitionState: com.fahim.mad_lab_compose.voice.RecognitionState,
     onInputTextChanged: (String) -> Unit,
     onSendMessage: () -> Unit,
-    onQuickPromptClicked: (String) -> Unit,
-    onStartVoiceRecognition: () -> Unit,
-    onStopVoiceRecognition: () -> Unit
+    onQuickPromptClicked: (String) -> Unit
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -798,54 +742,17 @@ fun ChatInputBar(
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = onInputTextChanged,
-                    placeholder = {
-                        Text(
-                            when (voiceRecognitionState) {
-                                is com.fahim.mad_lab_compose.voice.RecognitionState.Listening -> "Listening..."
-                                is com.fahim.mad_lab_compose.voice.RecognitionState.Partial -> voiceRecognitionState.text
-                                else -> "Ask anything or share a fact..."
-                            }
-                        )
-                    },
+                    placeholder = { Text("Ask anything or share a fact...") },
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 8.dp),
                     shape = RoundedCornerShape(24.dp),
                     maxLines = 4,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = if (voiceRecognitionState is com.fahim.mad_lab_compose.voice.RecognitionState.Listening) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        },
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                     )
                 )
-
-                // Microphone Button
-                IconButton(
-                    onClick = {
-                        when (voiceRecognitionState) {
-                            is com.fahim.mad_lab_compose.voice.RecognitionState.Listening -> onStopVoiceRecognition()
-                            else -> onStartVoiceRecognition()
-                        }
-                    },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = if (voiceRecognitionState is com.fahim.mad_lab_compose.voice.RecognitionState.Listening) {
-                            Icons.Default.Stop
-                        } else {
-                            Icons.Default.Mic
-                        },
-                        contentDescription = if (voiceRecognitionState is com.fahim.mad_lab_compose.voice.RecognitionState.Listening) "Stop" else "Microphone",
-                        tint = if (voiceRecognitionState is com.fahim.mad_lab_compose.voice.RecognitionState.Listening) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.primary
-                        }
-                    )
-                }
 
                 IconButton(
                     onClick = onSendMessage,
@@ -887,161 +794,4 @@ private fun copyToClipboard(context: Context, text: String) {
     val clip = ClipData.newPlainText("Chat Message", text)
     clipboard.setPrimaryClip(clip)
     Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
-}
-
-@Composable
-fun ShareDialog(
-    onDismiss: () -> Unit,
-    getFormattedConversation: () -> String
-) {
-    val context = LocalContext.current
-    
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Share Conversation") },
-        text = {
-            Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                Text(
-                    "Share this conversation with another app:",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(150.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier.padding(12.dp)
-                    ) {
-                        androidx.compose.foundation.lazy.LazyColumn {
-                            items(
-                                getFormattedConversation().lines().take(10).toList()
-                            ) { line ->
-                                Text(
-                                    text = line,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    modifier = Modifier.padding(vertical = 2.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val conversationText = getFormattedConversation()
-                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(android.content.Intent.EXTRA_TEXT, conversationText)
-                        putExtra(android.content.Intent.EXTRA_SUBJECT, "MemoryBot Conversation")
-                    }
-                    val chooser = android.content.Intent.createChooser(shareIntent, "Share Conversation")
-                    context.startActivity(chooser)
-                    onDismiss()
-                }
-            ) {
-                Text("Share")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-        shape = RoundedCornerShape(20.dp)
-    )
-}
-
-@Composable
-fun SummaryDialog(
-    summary: String?,
-    isGenerating: Boolean,
-    onSave: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var title by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Conversation Summary") },
-        text = {
-            if (isGenerating) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(48.dp),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "Generating summary...",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                    OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        label = { Text("Summary Title") },
-                        placeholder = { Text("e.g., Study Discussion — 23 Sep 2026") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier.padding(12.dp)
-                        ) {
-                            androidx.compose.foundation.lazy.LazyColumn {
-                                items(
-                                    summary?.lines() ?: emptyList()
-                                ) { line ->
-                                    Text(
-                                        text = line,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier.padding(vertical = 2.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            if (!isGenerating && summary != null) {
-                Button(
-                    onClick = {
-                        if (title.isNotBlank()) {
-                            onSave(title)
-                        }
-                    },
-                    enabled = title.isNotBlank()
-                ) {
-                    Text("Save Summary")
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(if (isGenerating) "Cancel" else "Discard")
-            }
-        },
-        shape = RoundedCornerShape(20.dp)
-    )
 }
