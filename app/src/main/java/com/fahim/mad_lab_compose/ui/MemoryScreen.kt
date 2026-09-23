@@ -437,3 +437,26 @@ private fun formatTimestamp(timestamp: Long): String {
     val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, showSystemUi = true)
+@Composable
+fun MemoryScreenPreview() {
+    com.fahim.mad_lab_compose.ui.theme.GeminiChatbotTheme {
+        MemoryScreen(
+            state = ChatState(
+                memories = listOf(
+                    MemoryEntity(id = 1, key = "Name", value = "Charmy"),
+                    MemoryEntity(id = 2, key = "College", value = "NMIMS"),
+                    MemoryEntity(id = 3, key = "Course", value = "Computer Engineering"),
+                    MemoryEntity(id = 4, key = "Favourite Subject", value = "Operating Systems")
+                )
+            ),
+            onBack = {},
+            onDeleteMemory = {},
+            onAddMemory = { _, _ -> },
+            onClearAllMemories = {},
+            onShowAddDialog = {},
+            onShowClearDialog = {}
+        )
+    }
+}

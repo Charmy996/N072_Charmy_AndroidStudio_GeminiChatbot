@@ -1045,3 +1045,67 @@ fun SummaryDialog(
         shape = RoundedCornerShape(20.dp)
     )
 }
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Chat Screen - Empty / Welcome")
+@Composable
+fun ChatScreenEmptyPreview() {
+    com.fahim.mad_lab_compose.ui.theme.GeminiChatbotTheme {
+        ChatScreen(
+            state = ChatState(isApiKeyConfigured = true),
+            onInputTextChanged = {},
+            onSendMessage = {},
+            onOpenMemories = {},
+            onOpenApiKeyDialog = {},
+            onShowClearChatDialog = {},
+            onConfirmClearChat = {},
+            onDismissError = {},
+            onSaveApiKey = {},
+            onShareConversation = {},
+            onDismissShareDialog = {},
+            getFormattedConversation = { "" },
+            onStartVoiceRecognition = {},
+            onStopVoiceRecognition = {},
+            onSpeakText = {},
+            onStopSpeaking = {},
+            onGenerateSummary = {},
+            onSaveSummary = {},
+            onDismissSummaryDialog = {}
+        )
+    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(showBackground = true, name = "Chat Screen - Conversation")
+@Composable
+fun ChatScreenConversationPreview() {
+    com.fahim.mad_lab_compose.ui.theme.GeminiChatbotTheme {
+        ChatScreen(
+            state = ChatState(
+                isApiKeyConfigured = true,
+                messages = listOf(
+                    MessageEntity(id = 1, sender = "user", message = "My name is Charmy and I study Computer Engineering at NMIMS.", timestamp = System.currentTimeMillis() - 60000),
+                    MessageEntity(id = 2, sender = "bot", message = "Hello Charmy! Nice to meet you. I've noted that you study Computer Engineering at NMIMS. How can I help you today?", timestamp = System.currentTimeMillis() - 40000),
+                    MessageEntity(id = 3, sender = "user", message = "Where do I study?", timestamp = System.currentTimeMillis() - 20000),
+                    MessageEntity(id = 4, sender = "bot", message = "You study Computer Engineering at NMIMS!", timestamp = System.currentTimeMillis())
+                )
+            ),
+            onInputTextChanged = {},
+            onSendMessage = {},
+            onOpenMemories = {},
+            onOpenApiKeyDialog = {},
+            onShowClearChatDialog = {},
+            onConfirmClearChat = {},
+            onDismissError = {},
+            onSaveApiKey = {},
+            onShareConversation = {},
+            onDismissShareDialog = {},
+            getFormattedConversation = { "" },
+            onStartVoiceRecognition = {},
+            onStopVoiceRecognition = {},
+            onSpeakText = {},
+            onStopSpeaking = {},
+            onGenerateSummary = {},
+            onSaveSummary = {},
+            onDismissSummaryDialog = {}
+        )
+    }
+}
