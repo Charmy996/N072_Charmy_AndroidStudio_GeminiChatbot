@@ -46,9 +46,7 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Psychology
-import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material.icons.filled.Summarize
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Warning
@@ -73,6 +71,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -108,13 +107,9 @@ fun ChatScreen(
     onConfirmClearChat: () -> Unit,
     onDismissError: () -> Unit,
     onSaveApiKey: (String) -> Unit,
-    onStartVoiceRecognition: () -> Unit,
-    onStopVoiceRecognition: () -> Unit,
-    onSpeakText: (String) -> Unit,
-    onStopSpeaking: () -> Unit,
-    onGenerateSummary: () -> Unit,
-    onSaveSummary: (String) -> Unit,
-    onDismissSummaryDialog: () -> Unit
+    onShareConversation: () -> Unit,
+    onDismissShareDialog: () -> Unit,
+    getFormattedConversation: () -> String
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -172,12 +167,12 @@ fun ChatScreen(
                     }
                 },
                 actions = {
-                    // Summarize Button
-                    if (state.messages.isNotEmpty() && !state.isGeneratingSummary) {
-                        IconButton(onClick = onGenerateSummary) {
+                    // Share Button
+                    if (state.messages.isNotEmpty()) {
+                        IconButton(onClick = onShareConversation) {
                             Icon(
-                                imageVector = Icons.Default.Summarize,
-                                contentDescription = "Summarize Chat"
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share Chat"
                             )
                         }
                     }
@@ -346,13 +341,11 @@ fun ChatScreen(
         )
     }
 
-    // Summary Dialog
-    if (state.showSummaryDialog) {
-        SummaryDialog(
-            summary = state.currentSummary,
-            isGenerating = state.isGeneratingSummary,
-            onSave = { title -> onSaveSummary(title) },
-            onDismiss = onDismissSummaryDialog
+    // Share Dialog
+    if (state.showShareDialog) {
+        ShareDialog(
+            onDismiss = onDismissShareDialog,
+            getFormattedConversation = getFormattedConversation
         )
     }
 }
@@ -885,65 +878,41 @@ private fun copyToClipboard(context: Context, text: String) {
 }
 
 @Composable
-fun SummaryDialog(
-    summary: String?,
-    isGenerating: Boolean,
-    onSave: (String) -> Unit,
-    onDismiss: () -> Unit
+fun ShareDialog(
+    onDismiss: () -> Unit,
+    getFormattedConversation: () -> String
 ) {
-    var title by remember { mutableStateOf("") }
-
+    val context = LocalContext.current
+    
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Conversation Summary") },
+        title = { Text("Share Conversation") },
         text = {
-            if (isGenerating) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+            Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                Text(
+                    "Share this conversation with another app:",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(150.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(48.dp),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "Generating summary...",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            } else {
-                Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                    OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        label = { Text("Summary Title") },
-                        placeholder = { Text("e.g., Study Discussion — 23 Sep 2026") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        shape = RoundedCornerShape(8.dp)
+                    Box(
+                        modifier = Modifier.padding(12.dp)
                     ) {
-                        Box(
-                            modifier = Modifier.padding(12.dp)
-                        ) {
-                            androidx.compose.foundation.lazy.LazyColumn {
-                                items(
-                                    summary?.lines() ?: emptyList()
-                                ) { line ->
-                                    Text(
-                                        text = line,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier.padding(vertical = 2.dp)
-                                    )
-                                }
+                        androidx.compose.foundation.lazy.LazyColumn {
+                            items(
+                                getFormattedConversation().lines().take(10).toList()
+                            ) { line ->
+                                Text(
+                                    text = line,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(vertical = 2.dp)
+                                )
                             }
                         }
                     }
@@ -951,22 +920,25 @@ fun SummaryDialog(
             }
         },
         confirmButton = {
-            if (!isGenerating && summary != null) {
-                Button(
-                    onClick = {
-                        if (title.isNotBlank()) {
-                            onSave(title)
-                        }
-                    },
-                    enabled = title.isNotBlank()
-                ) {
-                    Text("Save Summary")
+            Button(
+                onClick = {
+                    val conversationText = getFormattedConversation()
+                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_TEXT, conversationText)
+                        putExtra(android.content.Intent.EXTRA_SUBJECT, "MemoryBot Conversation")
+                    }
+                    val chooser = android.content.Intent.createChooser(shareIntent, "Share Conversation")
+                    context.startActivity(chooser)
+                    onDismiss()
                 }
+            ) {
+                Text("Share")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(if (isGenerating) "Cancel" else "Discard")
+                Text("Cancel")
             }
         },
         shape = RoundedCornerShape(20.dp)

@@ -209,123 +209,32 @@ class ChatViewModel(
         _uiState.update { it.copy(showClearMemoriesDialog = show) }
     }
 
-    // Summary Methods
-    fun generateSummary() {
+    // Share Methods
+    fun shareConversation() {
         if (_uiState.value.messages.isEmpty()) {
-            _uiState.update { it.copy(errorMessage = "No conversation to summarize") }
+            _uiState.update { it.copy(errorMessage = "No conversation to share") }
             return
         }
+        _uiState.update { it.copy(showShareDialog = true) }
+    }
 
-        _uiState.update { it.copy(isGeneratingSummary = true, errorMessage = null) }
+    fun dismissShareDialog() {
+        _uiState.update { it.copy(showShareDialog = false) }
+    }
 
-        viewModelScope.launch {
-            when (val result = repository.generateSummary()) {
-                is ResultState.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isGeneratingSummary = false,
-                            currentSummary = result.data,
-                            showSummaryDialog = true
-                        )
-                    }
-                }
-                is ResultState.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isGeneratingSummary = false,
-                            errorMessage = result.message,
-                            isApiKeyConfigured = repository.isApiKeyConfigured()
-                        )
-                    }
-                }
-            }
+    fun getFormattedConversation(): String {
+        val messages = _uiState.value.messages
+        val sb = StringBuilder()
+        sb.append("MemoryBot Conversation\n")
+        sb.append("Generated on ${java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())}\n\n")
+        
+        messages.forEach { message ->
+            val sender = if (message.sender == "user") "User" else "Bot"
+            sb.append("$sender:\n")
+            sb.append("${message.message}\n\n")
         }
-    }
-
-    fun saveSummary(title: String) {
-        val summary = _uiState.value.currentSummary
-        if (summary.isNullOrBlank()) return
-
-        viewModelScope.launch {
-            repository.saveSummary(title, summary)
-            _uiState.update {
-                it.copy(
-                    currentSummary = null,
-                    showSummaryDialog = false
-                )
-            }
-        }
-    }
-
-    fun dismissSummaryDialog() {
-        _uiState.update {
-            it.copy(
-                currentSummary = null,
-                showSummaryDialog = false,
-                isGeneratingSummary = false
-            )
-        }
-    }
-
-    fun deleteSummary(summary: SummaryEntity) {
-        viewModelScope.launch {
-            repository.deleteSummary(summary)
-        }
-    }
-
-    fun deleteSummaryById(id: Long) {
-        viewModelScope.launch {
-            repository.deleteSummaryById(id)
-        }
-    }
-
-    fun clearAllSummaries() {
-        viewModelScope.launch {
-            repository.clearAllSummaries()
-        }
-    }
-
-    // Voice Recognition Methods
-
-    fun deleteSummary(summary: SummaryEntity) {
-        viewModelScope.launch {
-            repository.deleteSummary(summary)
-        }
-    }
-
-    fun deleteSummaryById(id: Long) {
-        viewModelScope.launch {
-            repository.deleteSummaryById(id)
-        }
-    }
-
-    fun clearAllSummaries() {
-        viewModelScope.launch {
-            repository.clearAllSummaries()
-        }
-    }
-
->>>>>>> feature/conversation-summary
-    // Voice Recognition Methods
-    fun startVoiceRecognition() {
-        voiceHelper?.startListening()
-    }
-
-    fun stopVoiceRecognition() {
-        voiceHelper?.stopListening()
-    }
-
-    fun speakText(text: String) {
-        voiceHelper?.speak(text)
-    }
-
-    fun stopSpeaking() {
-        voiceHelper?.stopSpeaking()
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        voiceHelper?.release()
+        
+        return sb.toString()
     }
 }
 

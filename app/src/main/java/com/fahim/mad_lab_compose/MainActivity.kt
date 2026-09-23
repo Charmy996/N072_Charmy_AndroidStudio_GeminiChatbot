@@ -93,13 +93,9 @@ fun ChatbotApp(viewModel: ChatViewModel, onRequestMicPermission: () -> Unit) {
                     onConfirmClearChat = { viewModel.clearChatHistory() },
                     onDismissError = { viewModel.dismissError() },
                     onSaveApiKey = { key -> viewModel.setApiKey(key) },
-                    onStartVoiceRecognition = {
-                        onRequestMicPermission()
-                        viewModel.startVoiceRecognition()
-                    },
-                    onStopVoiceRecognition = { viewModel.stopVoiceRecognition() },
-                    onSpeakText = { text -> viewModel.speakText(text) },
-                    onStopSpeaking = { viewModel.stopSpeaking() }
+                    onShareConversation = { viewModel.shareConversation() },
+                    onDismissShareDialog = { viewModel.dismissShareDialog() },
+                    getFormattedConversation = { viewModel.getFormattedConversation() }
                 )
             }
             AppScreen.MEMORY -> {
