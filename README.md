@@ -16,17 +16,17 @@
 
 <div align="center">
 
-| 🧠 Room Memory Dashboard | 🎙️ Live Voice Input | 🔒 Runtime Audio Permission |
+| 💬 Persistent Memory Chat | 🧠 Room Memory Dashboard | 🎙️ Live Voice Input |
 | :---: | :---: | :---: |
-| <img src="screenshots/01_memory_dashboard.png" width="260" alt="Memory Dashboard" /> | <img src="screenshots/02_voice_listening.png" width="260" alt="Voice Listening State" /> | <img src="screenshots/03_mic_permission.png" width="260" alt="Microphone Permission" /> |
-| *Persisted user facts in Room* | *Active speech-to-text waveform* | *Jetpack Compose Permission Dialog* |
+| <img src="screenshots/00_chat_conversation.png" width="250" alt="Persistent Memory Conversation" /> | <img src="screenshots/01_memory_dashboard.png" width="250" alt="Memory Dashboard" /> | <img src="screenshots/02_voice_listening.png" width="250" alt="Voice Listening State" /> |
+| *Context-aware memory recall* | *Persisted user facts in Room* | *Active speech-to-text waveform* |
 
 <br/>
 
-| 📤 Share Conversation Export | 🗑️ Safe Clear Chat Dialog |
-| :---: | :---: |
-| <img src="screenshots/04_share_conversation.png" width="260" alt="Share Conversation" /> | <img src="screenshots/05_clear_chat_dialog.png" width="260" alt="Clear Chat Confirmation" /> |
-| *Native Android ACTION_SEND share sheet* | *Clears messages while preserving Room memories* |
+| 🔒 Runtime Audio Permission | 📤 Share Conversation Export | 🗑️ Safe Clear Chat Dialog |
+| :---: | :---: | :---: |
+| <img src="screenshots/03_mic_permission.png" width="250" alt="Microphone Permission" /> | <img src="screenshots/04_share_conversation.png" width="250" alt="Share Conversation" /> | <img src="screenshots/05_clear_chat_dialog.png" width="250" alt="Clear Chat Confirmation" /> |
+| *Jetpack Compose Permission Dialog* | *Native Android ACTION_SEND share sheet* | *Clears messages while preserving Room memories* |
 
 </div>
 
@@ -165,7 +165,7 @@ APK file location: `app/build/outputs/apk/debug/app-debug.apk`
 
 - [x] **Git Feature Branches**: Separate branches (`feature/voice-chat`, `feature/conversation-summary`, `feature/chat-sharing`) merged into `master`.
 - [x] **Zero Secrets in Repository**: No credentials or private files tracked in git history.
-- [x] **Screenshots Embedded**: UI walkthrough included in documentation.
+- [x] **All 6 Screenshots Embedded**: Complete UI walkthrough included in documentation.
 - [x] **Room Persistent Memory**: User facts persist across full app restarts.
 - [x] **Speech-to-Text & Text-to-Speech**: Full voice input and spoken output support.
 - [x] **Conversation Export & Clear**: Native Android Share Sheet and safe history wipe.
